@@ -6,7 +6,7 @@
 
 <form asp-controller="RfqAdmin" asp-action="Configure" method="post">
     <section class="content">
-        <div class="container-fluid">			
+        <div class="container-fluid">
             <div class="card card-default">
                 <div class="card-body">
                     <div class="form-group row">
@@ -18,13 +18,31 @@
                             <span asp-validation-for="Enabled"></span>
                         </div>
                     </div>
+                    <nop-nested-setting asp-for="Enabled">
+                        <div class="form-group row">
+                            <div class="col-md-3">
+                                <nop-label asp-for="ShowCaptchaOnRequestPage" />
+                            </div>
+                            <div class="col-md-9">
+                                <nop-editor asp-for="ShowCaptchaOnRequestPage" />
+                                <span asp-validation-for="ShowCaptchaOnRequestPage"></span>
+
+                                @if (!Model.IsCaptchaEnabled)
+                                {
+                                    <div class="callout bg-gray-light no-margin">
+                                        @T("Plugins.Misc.RFQ.CaptchaDisabled.Notification")
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </nop-nested-setting>
                     <div class="form-group row">
                         <div class="col-md-9 offset-md-3">
                             <input type="submit" name="save" class="btn btn-primary" value="@T("Admin.Common.Save")" />
                         </div>
                     </div>
                 </div>
-            </div>			
+            </div>
         </div>
     </section>
 </form>
