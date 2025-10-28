@@ -10,18 +10,60 @@
 
 ## Critical: Mission Command Framework
 
-This project uses a **Mission Command Framework** for AI-assisted development. The framework is located at `.claude/CLAUDE.md` and contains PRIMARY DIRECTIVES that MUST be followed:
+This project operates under a **DEVGRU-level Mission Command Framework**. All AI-assisted development MUST follow the operational protocols defined in `.claude/CLAUDE.md`.
 
-### Request Classification (MANDATORY)
+### Command Structure
 
-Every request must be classified before action:
+**`.claude/CLAUDE.md`** = **PRIMARY COMMAND AUTHORITY**
+- Contains the mission classification system
+- Defines operational protocols (mission templates)
+- Establishes quality gates and verification requirements
+- Specifies communication and after-action protocols
 
-| Classification | Criteria | Action |
-|---------------|----------|--------|
-| **Simple Task** | Single step, ≤2 files, no architectural decisions | Execute directly or delegate to single agent |
-| **Complex Mission** | Multiple steps, >2 files, architectural impact, or ambiguous | Think about the user's prompt, dicern the objectives, and delegate for blueprinting |
+**This file (src/CLAUDE.md)** = **Technical Reference**
+- nopCommerce platform documentation
+- Technology stack and coding standards
+- Available agents and their specializations
 
-**The `.claude/CLAUDE.md` file takes precedence over this file for all mission protocol decisions.**
+### Operational Protocols (Mission Templates)
+
+The following **mission protocols** are available for standard operations:
+
+| Protocol | Command | Use Case |
+|----------|---------|----------|
+| New Plugin | `/nop-new-plugin` | Create complete nopCommerce plugin from scratch |
+| Add Entity | `/nop-add-entity` | Add domain entity with EF Core data access |
+| Add Integration | `/nop-add-integration` | Integrate third-party service (payment/shipping/tax/auth) |
+| Add Widget | `/nop-add-widget` | Create UI widget for store/admin display |
+| Testing | `/nop-test` | Create comprehensive unit and integration tests |
+| Troubleshooting | `/nop-fix` | Diagnose and fix bugs, errors, performance issues |
+| Quality Review | `/nop-review` | Pre-release QA audit and compliance verification |
+| Optimization | `/nop-optimize` | Performance tuning (queries, caching, async) |
+
+### Classification Requirements
+
+**Every request MUST be classified:**
+
+1. **Information Request** → Execute directly (Read/Grep/Glob)
+2. **Simple Task** (≤2 files, single step) → Execute directly or delegate to specialist
+3. **Standard Mission** (matches protocol) → Execute mission protocol (slash command)
+4. **Complex Custom** (>2 files, architectural decisions) → Delegate to mission-commander
+
+### Quality Gate Enforcement
+
+**All missions must pass quality gates before completion:**
+
+- ✅ Zero compiler warnings
+- ✅ XML documentation on all public members
+- ✅ nopCommerce compliance (naming, structure, interfaces)
+- ✅ Security validated (input validation, no SQL injection)
+- ✅ Performance verified (caching, no N+1 queries)
+- ✅ Tests passing (for significant logic)
+- ✅ Filesystem verification (Read tool confirms changes)
+
+**Mission cannot be marked complete if Critical quality gates fail.**
+
+**The `.claude/CLAUDE.md` file contains the complete operational framework and takes precedence for all mission execution decisions.**
 
 ## Solution Structure
 
@@ -431,21 +473,176 @@ Many entities support multi-store via mapping tables (e.g., `StoreMapping`)
 
 ## Performance Best Practices
 
-### Caching Strategy
-- Use `IStaticCacheManager` for frequently accessed data
-- Cache keys should be specific and include relevant IDs
-- Clear cache on entity updates (use `ClearCache()`)
+### Caching Strategy (HIGH PRIORITY)
 
-### Database Query Optimization
-- Avoid N+1 queries (use `.Include()` for eager loading)
-- Use `.AsNoTracking()` for read-only queries
-- Use pagination for large result sets
-- Index frequently queried columns
+**Mandatory caching for:**
+- Entity lookups by ID (customers, products, categories)
+- Settings and configuration
+- Localization resources
+- Store information
 
-### Async Operations
-- All I/O operations must be async
-- Use `async/await` throughout the call stack
-- Avoid blocking calls (`.Result`, `.Wait()`)
+**Implementation pattern:**
+```csharp
+// CORRECT - Cache with proper key preparation
+public async Task<Customer> GetCustomerByIdAsync(int customerId)
+{
+    var cacheKey = _cacheManager.PrepareKeyForDefaultCache(
+        NopCustomerDefaults.CustomerByIdCacheKey,
+        customerId);
+
+    return await _cacheManager.GetAsync(cacheKey, async () =>
+    {
+        return await _customerRepository.GetByIdAsync(customerId);
+    });
+}
+
+// WRONG - No caching
+public async Task<Customer> GetCustomerByIdAsync(int customerId)
+{
+    return await _customerRepository.GetByIdAsync(customerId); // Queries DB every time
+}
+```
+
+**Cache invalidation:**
+- Clear cache when entity is updated/deleted
+- Use entity-specific cache keys (include entity ID)
+- Consider cache dependencies for related data
+
+### Database Query Optimization (CRITICAL)
+
+**N+1 Query Prevention:**
+```csharp
+// WRONG - N+1 queries (1 query + N queries for related data)
+var orders = await _orderRepository.Table.ToListAsync();
+foreach (var order in orders)
+{
+    var customer = await _customerRepository.GetByIdAsync(order.CustomerId); // N queries!
+}
+
+// CORRECT - Single query with eager loading
+var orders = await _orderRepository.Table
+    .Include(o => o.Customer)
+    .ToListAsync();
+```
+
+**Read-only query optimization:**
+```csharp
+// WRONG - EF Core tracks entities unnecessarily
+var products = await _productRepository.Table
+    .Where(p => p.Published)
+    .ToListAsync();
+
+// CORRECT - No tracking for read-only data
+var products = await _productRepository.Table
+    .AsNoTracking()
+    .Where(p => p.Published)
+    .ToListAsync();
+```
+
+**Pagination for large datasets:**
+```csharp
+// WRONG - Loads entire table into memory
+var allProducts = await _productRepository.Table.ToListAsync();
+
+// CORRECT - Page results
+var pagedProducts = await _productRepository.Table
+    .ToPagedListAsync(pageIndex, pageSize);
+```
+
+**Index strategy:**
+- Foreign keys (CustomerId, ProductId, CategoryId)
+- Frequently filtered columns (Published, Deleted, IsActive)
+- Sort columns (DisplayOrder, CreatedOnUtc, UpdatedOnUtc)
+- Composite indexes for multi-column queries
+
+### Async Operations (MANDATORY)
+
+**ALL I/O operations MUST be async:**
+
+```csharp
+// CORRECT - Full async chain
+public async Task<Order> ProcessOrderAsync(int orderId)
+{
+    var order = await _orderRepository.GetByIdAsync(orderId);
+    var customer = await _customerService.GetCustomerByIdAsync(order.CustomerId);
+    await _orderProcessingService.ProcessOrderAsync(order);
+    await _logger.InformationAsync($"Order {orderId} processed");
+    return order;
+}
+
+// WRONG - Blocking on async
+public Order ProcessOrder(int orderId)
+{
+    var order = _orderRepository.GetByIdAsync(orderId).Result; // DEADLOCK RISK!
+    // ...
+}
+```
+
+**Avoid blocking calls:**
+- ❌ `.Result` - Can cause deadlocks
+- ❌ `.Wait()` - Blocks thread
+- ❌ `.GetAwaiter().GetResult()` - Still blocking
+- ✅ `await` - Proper async/await pattern
+
+### Resource Management
+
+**HttpClient reuse (prevent socket exhaustion):**
+```csharp
+// WRONG - Creates new HttpClient per request
+public async Task<string> CallApiAsync()
+{
+    using var client = new HttpClient(); // Socket exhaustion!
+    return await client.GetStringAsync("https://api.example.com");
+}
+
+// CORRECT - Register HttpClient in DI
+public class DependencyRegistrar : IDependencyRegistrar
+{
+    public void Register(IServiceCollection services, ITypeFinder typeFinder, AppSettings appSettings)
+    {
+        services.AddHttpClient<IMyApiService, MyApiService>();
+    }
+}
+```
+
+**Dispose pattern:**
+```csharp
+// Ensure IDisposable objects are disposed
+using var stream = new FileStream(path, FileMode.Open);
+using var reader = new StreamReader(stream);
+var content = await reader.ReadToEndAsync();
+```
+
+### Performance Targets
+
+**Response time targets:**
+- Admin page loads: < 500ms
+- Public store pages: < 300ms
+- API endpoints: < 200ms
+- Database queries: < 50ms (simple), < 200ms (complex)
+
+**Query count targets:**
+- Simple pages: ≤ 5 queries
+- Complex pages: ≤ 15 queries
+- Never acceptable: > 50 queries per request
+
+**Memory targets:**
+- Request memory: < 50MB typical, < 200MB max
+- Cache size: Monitor and limit to prevent OutOfMemory
+
+### Performance Monitoring
+
+**Add performance logging:**
+```csharp
+var stopwatch = Stopwatch.StartNew();
+var result = await ExpensiveOperationAsync();
+stopwatch.Stop();
+
+if (stopwatch.ElapsedMilliseconds > 1000)
+{
+    await _logger.WarningAsync($"Slow operation: {stopwatch.ElapsedMilliseconds}ms");
+}
+```
 
 ## Git Workflow
 
@@ -521,16 +718,83 @@ dotnet test
 dotnet run --project Presentation\Nop.Web\Nop.Web.csproj
 ```
 
-### 4. Quality Checklist
-- [ ] Zero compiler warnings
-- [ ] All public members have XML docs
-- [ ] Async/await used for I/O operations
-- [ ] Language keywords used (not type names)
-- [ ] Input validation implemented
-- [ ] Error handling and logging added
-- [ ] Caching implemented where appropriate
-- [ ] Tests written and passing
-- [ ] Plugin installs/uninstalls cleanly (for plugins)
+### 4. Quality Checklist (DEVGRU Standard)
+
+**Code Quality (Zero Defects):**
+- [ ] Zero compiler warnings (treat warnings as errors)
+- [ ] Zero code analysis warnings
+- [ ] All public members have XML documentation
+- [ ] Async/await used for ALL I/O operations
+- [ ] Language keywords used (string not String, int not Int32)
+- [ ] No magic numbers or strings (use constants/enums)
+- [ ] No commented-out code (use version control)
+- [ ] Proper naming conventions (PascalCase for public, camelCase for private)
+
+**nopCommerce Compliance (100% Required):**
+- [ ] Plugin naming: `Nop.Plugin.{Group}.{Name}`
+- [ ] plugin.json structure complete and valid
+- [ ] IPlugin interface implemented with Install/Uninstall
+- [ ] DependencyRegistrar registers all services
+- [ ] No modifications to core nopCommerce files
+- [ ] Localization resources added for all user-facing strings
+- [ ] Multi-store configuration support (if applicable)
+
+**Security (Non-Negotiable):**
+- [ ] Input validation on ALL user inputs (never trust user data)
+- [ ] Output encoding to prevent XSS attacks
+- [ ] No SQL injection vulnerabilities (use EF Core LINQ only)
+- [ ] Authentication/authorization checks on protected operations
+- [ ] Secrets stored securely (ISettingService, not hardcoded)
+- [ ] HTTPS enforced for sensitive operations
+- [ ] No sensitive data logged or exposed in errors
+
+**Performance (Targets Must Be Met):**
+- [ ] Caching implemented for frequently accessed data
+- [ ] No N+1 query problems (use .Include() for eager loading)
+- [ ] .AsNoTracking() used for read-only queries
+- [ ] Pagination for large result sets (use ToPagedListAsync)
+- [ ] Database indexes on foreign keys and filtered columns
+- [ ] No blocking async calls (.Result or .Wait())
+- [ ] HttpClient registered in DI (not created per request)
+- [ ] Response time < 500ms (admin), < 300ms (public)
+
+**Error Handling & Logging:**
+- [ ] Try-catch blocks around I/O operations
+- [ ] Exceptions logged with context (ILogger)
+- [ ] User-friendly error messages (no stack traces to users)
+- [ ] Validation errors returned with specific messages
+- [ ] Critical operations have failure recovery logic
+
+**Testing & Verification:**
+- [ ] Unit tests for business logic (≥ 70% coverage)
+- [ ] Integration tests for data access layer
+- [ ] Plugin installation tested (creates tables, settings)
+- [ ] Plugin uninstallation tested (cleans up properly)
+- [ ] Manual testing in admin panel and public store
+- [ ] Tested with sample data (not just empty database)
+
+**Documentation:**
+- [ ] README.md with installation and configuration steps
+- [ ] Code comments for complex logic
+- [ ] API documentation for public methods (XML docs)
+- [ ] CHANGELOG.md for version history
+
+**Build & Deployment:**
+- [ ] Solution builds without errors or warnings
+- [ ] Plugin DLL outputs to correct directory
+- [ ] Dependencies packaged correctly
+- [ ] Works with nopCommerce 4.90 (target version)
+- [ ] Works in Release and Debug configurations
+
+**Pre-Release Final Verification:**
+- [ ] All quality gates passed (run checklist again)
+- [ ] Code reviewed by another developer or QA specialist
+- [ ] Tested on clean nopCommerce installation
+- [ ] No console errors in browser developer tools
+- [ ] No log errors during normal operation
+- [ ] User documentation complete and accurate
+
+**Mission cannot be marked COMPLETE until ALL Critical items pass.**
 
 ### 5. Committing Changes
 ```powershell

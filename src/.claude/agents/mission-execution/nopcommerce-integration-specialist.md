@@ -320,7 +320,12 @@ public class {GatewayName}PaymentProcessor : BasePlugin, IPaymentMethod
     /// <summary>
     /// Gets a payment method type
     /// </summary>
-    public PaymentMethodType PaymentMethodType => PaymentMethodType.Standard; // or PaymentMethodType.Redirection
+    /// <remarks>
+    /// Standard: Payment is processed on nopCommerce site (credit card form, etc.)
+    /// Redirection: Customer is redirected to external payment page
+    /// Button: Payment button/widget embedded in checkout (e.g., PayPal Smart Buttons)
+    /// </remarks>
+    public PaymentMethodType PaymentMethodType => PaymentMethodType.Standard; // or Redirection or Button
 
     /// <summary>
     /// Gets a value indicating whether capture is supported
@@ -599,6 +604,8 @@ public class {ProviderName}TaxProvider : BasePlugin, ITaxProvider
 **Plugin Naming**: `Nop.Plugin.ExternalAuth.{ProviderName}`
 **Examples**: `Nop.Plugin.ExternalAuth.Facebook`, `Nop.Plugin.ExternalAuth.Google`
 
+**IMPORTANT**: External auth plugins must also implement `IExternalAuthenticationRegistrar` to register with nopCommerce's authentication system.
+
 #### **IExternalAuthenticationMethod Interface Implementation**
 ```csharp
 /// <summary>
@@ -622,6 +629,39 @@ public class {ProviderName}AuthenticationMethod : BasePlugin, IExternalAuthentic
     public string GetPublicViewComponentName()
     {
         return "{ProviderName}Authentication";
+    }
+}
+```
+
+#### **External Authentication Registrar**
+```csharp
+/// <summary>
+/// Represents registrar of external authentication methods
+/// </summary>
+public class {ProviderName}ExternalAuthenticationRegistrar : IExternalAuthenticationRegistrar
+{
+    /// <summary>
+    /// Configure
+    /// </summary>
+    /// <param name="builder">Authentication builder</param>
+    public void Configure(AuthenticationBuilder builder)
+    {
+        builder.AddOAuth("{ProviderName}", "{ProviderName}", options =>
+        {
+            // Configure OAuth options
+            options.ClientId = "configured-at-runtime";
+            options.ClientSecret = "configured-at-runtime";
+            options.CallbackPath = "/signin-{providername}";
+
+            // Add scopes
+            options.Scope.Add("email");
+            options.Scope.Add("profile");
+
+            // Configure endpoints
+            options.AuthorizationEndpoint = "https://auth.provider.com/oauth/authorize";
+            options.TokenEndpoint = "https://auth.provider.com/oauth/token";
+            options.UserInformationEndpoint = "https://api.provider.com/user";
+        });
     }
 }
 ```

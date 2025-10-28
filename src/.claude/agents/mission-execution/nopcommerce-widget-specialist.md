@@ -155,6 +155,8 @@ public class {WidgetName}Plugin : BasePlugin, IWidgetPlugin
 
 ### **Widget Zones Reference**
 
+**IMPORTANT**: `PublicWidgetZones` and `AdminWidgetZones` are static classes in `Nop.Web.Framework.Infrastructure` containing string constants for all available widget zones.
+
 #### **Public Store Widget Zones**
 ```csharp
 // Homepage
@@ -507,9 +509,27 @@ public class {WidgetName}WidgetController : BasePluginController
 
 ## JavaScript/CSS Integration Pattern
 
-### **Including Static Files**
+### **Including Static Files (Recommended: ScriptPartial)**
+
+**BEST PRACTICE**: Use `Html.RenderScriptParts()` for better JavaScript loading performance.
+
 ```csharp
-// In your ViewComponent or service
+// In your ViewComponent or view
+@using Nop.Web.Framework.UI;
+@using Microsoft.AspNetCore.Mvc.Rendering;
+
+@{
+    // Add script to be rendered in footer (better page load performance)
+    Html.AddScriptParts(ResourceLocation.Footer, "~/Plugins/Widgets.{WidgetName}/Content/script.js", excludeFromBundle: false);
+
+    // Add CSS
+    Html.AppendCssFileParts("~/Plugins/Widgets.{WidgetName}/Content/style.css");
+}
+```
+
+### **Direct Inclusion (Legacy Pattern)**
+```csharp
+// Only use if ScriptPartial is not suitable
 public async Task<string> GetWidgetScriptAsync()
 {
     return $"<script src=\"/Plugins/Widgets.{WidgetName}/Content/script.js\"></script>";
@@ -518,6 +538,19 @@ public async Task<string> GetWidgetScriptAsync()
 public async Task<string> GetWidgetStyleAsync()
 {
     return $"<link href=\"/Plugins/Widgets.{WidgetName}/Content/style.css\" rel=\"stylesheet\" />";
+}
+```
+
+### **Inline JavaScript with ScriptPartial**
+```csharp
+@{
+    // Add inline JavaScript
+    Html.AddInlineScriptParts(ResourceLocation.Footer, @"
+        $(document).ready(function() {
+            // Your widget JavaScript here
+            console.log('Widget loaded');
+        });
+    ");
 }
 ```
 

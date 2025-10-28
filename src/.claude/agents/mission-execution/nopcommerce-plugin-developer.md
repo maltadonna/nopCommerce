@@ -144,23 +144,9 @@ When Team Commander delegates a task to you, you will receive:
    - Verify integration points still work
    - Check for breaking changes
 
-**For Troubleshooting**:
-
-1. **Diagnose** (gathering context):
-   - Reproduce the issue
-   - Check logs and error messages
-   - Verify plugin registration
-   - Check dependency conflicts
-
-2. **Fix** (maintaining standards):
-   - Apply fix following coding standards
-   - Add logging if needed
-   - Update tests
-
-3. **Verify**:
-   - Confirm issue resolved
-   - Test for regressions
-   - Document fix
+**For Troubleshooting/Bug Fixing**: ❌ **NOT YOUR RESPONSIBILITY**
+- Delegate immediately to `nopcommerce-troubleshooter` agent
+- You handle infrastructure, they handle debugging
 
 #### Step 4: Self-Verification Against Blueprint
 
@@ -269,7 +255,8 @@ Plugins/Nop.Plugin.{Group}.{Name}/
 ├── DependencyRegistrar.cs              (Service registration)
 ├── Infrastructure/
 │   ├── RouteProvider.cs                (Custom routes if needed)
-│   └── PluginStartup.cs                (Startup configuration)
+│   ├── PluginStartup.cs                (Startup configuration)
+│   └── *EventConsumer.cs               (Event consumers for distributed events)
 ├── Services/
 │   ├── I{ServiceName}Service.cs        (Service interfaces)
 │   └── {ServiceName}Service.cs         (Service implementations)
@@ -368,6 +355,235 @@ public class DependencyRegistrar : IDependencyRegistrar
     public int Order => 1;
 }
 ```
+
+### RouteProvider Pattern (for Webhooks/Callbacks)
+
+```csharp
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
+using Nop.Web.Framework.Mvc.Routing;
+
+namespace Nop.Plugin.{Group}.{Name}.Infrastructure
+{
+    /// <summary>
+    /// Represents route provider for plugin custom routes
+    /// </summary>
+    public class RouteProvider : IRouteProvider
+    {
+        /// <summary>
+        /// Register routes
+        /// </summary>
+        /// <param name="endpointRouteBuilder">Route builder</param>
+        public void RegisterRoutes(IEndpointRouteBuilder endpointRouteBuilder)
+        {
+            // Webhook endpoint
+            endpointRouteBuilder.MapControllerRoute("Plugin.{Group}.{Name}.Webhook",
+                "Plugins/{Group}{Name}/Webhook",
+                new { controller = "{Name}Webhook", action = "Index" });
+
+            // Callback endpoint (e.g., for payment gateways)
+            endpointRouteBuilder.MapControllerRoute("Plugin.{Group}.{Name}.Callback",
+                "Plugins/{Group}{Name}/Callback",
+                new { controller = "{Name}Callback", action = "Callback" });
+        }
+
+        /// <summary>
+        /// Gets a priority of route provider
+        /// </summary>
+        public int Priority => 0;
+    }
+}
+```
+
+### PluginStartup Pattern (Advanced Configuration)
+
+```csharp
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Nop.Core.Infrastructure;
+
+namespace Nop.Plugin.{Group}.{Name}.Infrastructure
+{
+    /// <summary>
+    /// Represents startup configuration for the plugin
+    /// </summary>
+    public class PluginStartup : INopStartup
+    {
+        /// <summary>
+        /// Configure services
+        /// </summary>
+        public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
+        {
+            // Add HTTP client for API calls
+            services.AddHttpClient<I{ServiceName}ApiService, {ServiceName}ApiService>();
+
+            // Add other advanced services here
+        }
+
+        /// <summary>
+        /// Configure the application HTTP request pipeline
+        /// </summary>
+        public void Configure(IApplicationBuilder application)
+        {
+            // Configure middleware if needed
+        }
+
+        /// <summary>
+        /// Gets order of this startup configuration implementation
+        /// </summary>
+        public int Order => 3000;
+    }
+}
+```
+
+### Event Consumer Pattern (for Distributed Event Notification)
+
+```csharp
+using System.Threading.Tasks;
+using Nop.Core.Domain.Orders;
+using Nop.Core.Events;
+using Nop.Services.Logging;
+
+namespace Nop.Plugin.{Group}.{Name}.Infrastructure
+{
+    /// <summary>
+    /// Represents event consumer for order placed events
+    /// </summary>
+    public class OrderPlacedEventConsumer : IConsumer<OrderPlacedEvent>
+    {
+        private readonly ILogger _logger;
+        private readonly I{ServiceName}Service _service;
+
+        /// <summary>
+        /// Ctor
+        /// </summary>
+        public OrderPlacedEventConsumer(
+            ILogger logger,
+            I{ServiceName}Service service)
+        {
+            _logger = logger;
+            _service = service;
+        }
+
+        /// <summary>
+        /// Handle the event asynchronously
+        /// </summary>
+        /// <param name="eventMessage">The event message</param>
+        /// <returns>A task that represents the asynchronous operation</returns>
+        public async Task HandleEventAsync(OrderPlacedEvent eventMessage)
+        {
+            if (eventMessage?.Order == null)
+                return;
+
+            try
+            {
+                // React to order placed event
+                await _service.ProcessOrderPlacedAsync(eventMessage.Order);
+
+                await _logger.InformationAsync($"Processed order {eventMessage.Order.Id}");
+            }
+            catch (Exception ex)
+            {
+                await _logger.ErrorAsync($"Error processing order placed event for order {eventMessage.Order.Id}", ex);
+            }
+        }
+    }
+}
+```
+
+**Common Event Types**:
+```csharp
+// Entity CRUD events (generic)
+EntityInsertedEvent<TEntity>    // When entity is inserted
+EntityUpdatedEvent<TEntity>     // When entity is updated
+EntityDeletedEvent<TEntity>     // When entity is deleted
+
+// Domain events (specific)
+OrderPlacedEvent                // When order is placed
+OrderPaidEvent                  // When order payment is received
+OrderCancelledEvent             // When order is cancelled
+CustomerRegisteredEvent         // When customer registers
+ProductReviewApprovedEvent      // When product review is approved
+```
+
+**Event Consumer Best Practices**:
+- Place in `Infrastructure/` folder
+- Name with `EventConsumer` suffix (e.g., `OrderPlacedEventConsumer`)
+- Implement `IConsumer<TEvent>` interface
+- Use async `HandleEventAsync` method (not synchronous `HandleEvent`)
+- Event consumers are **auto-discovered** (no manual registration in DependencyRegistrar)
+- Use dependency injection in constructor
+- Handle exceptions gracefully (don't throw - events are fire-and-forget)
+- Keep event handlers fast (use background tasks for long operations)
+
+**Example: React to Entity Changes**
+```csharp
+/// <summary>
+/// Event consumer for customer entity insertions
+/// </summary>
+public class CustomerInsertedEventConsumer : IConsumer<EntityInsertedEvent<Customer>>
+{
+    private readonly ILogger _logger;
+
+    public CustomerInsertedEventConsumer(ILogger logger)
+    {
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Handle customer inserted event
+    /// </summary>
+    public async Task HandleEventAsync(EntityInsertedEvent<Customer> eventMessage)
+    {
+        var customer = eventMessage.Entity;
+
+        // Example: Log new customer registration
+        await _logger.InformationAsync($"New customer registered: {customer.Email}");
+
+        // Example: Send welcome email, update external CRM, etc.
+    }
+}
+```
+
+**When to Use Event Consumers**:
+- React to core nopCommerce events (orders, customers, products)
+- Integrate with external systems (webhooks, APIs, CRM)
+- Implement cross-cutting concerns (logging, notifications, analytics)
+- Keep plugins decoupled from each other
+- Implement custom business logic triggered by domain events
+
+**Event Publishing** (from your services):
+```csharp
+// In your service
+private readonly IEventPublisher _eventPublisher;
+
+// Publish domain event
+await _eventPublisher.PublishAsync(new CustomEvent { Data = data });
+
+// Publish entity event (done automatically by repositories)
+await _eventPublisher.EntityInsertedAsync(entity);
+await _eventPublisher.EntityUpdatedAsync(entity);
+await _eventPublisher.EntityDeletedAsync(entity);
+```
+
+## When to Delegate to Specialists
+
+**IMPORTANT**: For specific plugin types, delegate immediately to specialists:
+
+| Plugin Type | Delegate To | When |
+|------------|-------------|------|
+| Payment Gateway | `nopcommerce-integration-specialist` | IPaymentMethod implementation |
+| Shipping Provider | `nopcommerce-integration-specialist` | IShippingRateComputationMethod implementation |
+| Tax Provider | `nopcommerce-integration-specialist` | ITaxProvider implementation |
+| External Auth | `nopcommerce-integration-specialist` | IExternalAuthenticationMethod implementation |
+| Widget | `nopcommerce-widget-specialist` | IWidgetPlugin implementation |
+| Data Layer | `nopcommerce-data-specialist` | Entity, EF Core, migrations |
+| UI/Views | `nopcommerce-ui-specialist` | Razor views, JavaScript, CSS |
+| Testing | `nopcommerce-test-specialist` | Unit/integration tests |
+| Migration | `nopcommerce-migration-specialist` | Version upgrades |
+
+**You handle**: General plugin infrastructure, DependencyRegistrar, PluginStartup, RouteProvider, misc plugins (IMiscPlugin).
 
 ## Coding Standards You Must Follow
 
