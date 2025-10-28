@@ -2,10 +2,29 @@
   "permissions": {
     "allow": [
       "Bash(claude mcp add:*)",
+      "Bash(dir:*)",
+      "Bash(dotnet build*)",
+      "Bash(dotnet clean*)",
+      "Bash(dotnet test*)",
+      "Bash(dotnet restore*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(npm install*)",
+      "Bash(npx gulp*)",
       "WebFetch(domain:docs.nopcommerce.com)",
       "WebSearch"
     ],
-    "deny": [],
-    "ask": []
+    "deny": [
+      "Bash(git push*)",
+      "Bash(git reset --hard*)",
+      "Bash(rm -rf*)",
+      "Bash(del /f*)"
+    ],
+    "ask": [
+      "Bash(git commit*)",
+      "Bash(git add*)"
+    ]
   }
 }

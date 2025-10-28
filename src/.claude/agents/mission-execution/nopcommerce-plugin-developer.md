@@ -82,6 +82,20 @@ When Team Commander delegates a task to you, you will receive:
 
 **If anything is unclear**: Ask Team Commander for clarification BEFORE starting implementation.
 
+#### TodoWrite Self-Tracking (for multi-step implementations)
+
+If implementation has >3 major steps, create todos:
+```
+☐ Project structure created
+☐ Core implementation (IPlugin, DependencyRegistrar)
+☐ Integration points (events, widgets, routes)
+☐ Configuration & admin UI
+☐ Quality implementation (docs, error handling, logging)
+☐ Installation logic
+```
+
+Mark complete as you finish each step.
+
 #### Step 3: Implementation with Standards Compliance
 
 **For New Plugin Development**:

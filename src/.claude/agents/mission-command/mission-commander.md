@@ -33,6 +33,19 @@ Investigate the mission context using your tools:
 
 **Critical**: Identify version compatibility, coding standards violations, and architectural risks BEFORE planning begins.
 
+**Track Blueprint Progress:**
+Use TodoWrite to create blueprint task list:
+1. Create parent: "Blueprint: {Mission objective}"
+2. Add child todos for each investigation area:
+   - [ ] Investigate existing implementations
+   - [ ] Research nopCommerce compatibility
+   - [ ] Identify required specialists
+   - [ ] Define architectural approach
+   - [ ] Document quality standards
+   - [ ] Create task breakdown
+3. Mark tasks complete as you progress
+4. Final blueprint includes task list for Team Commander execution
+
 ### Phase 2: Architecture & Planning
 Design the mission blueprint with:
 - **Technical requirements**: nopCommerce version, .NET version, required packages, compatibility

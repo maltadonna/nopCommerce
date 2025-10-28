@@ -97,6 +97,44 @@ Use SlashCommand tool with the appropriate command (e.g., /nop-new-plugin)
 
 ---
 
+### Mission State Tracking (TodoWrite)
+
+**MANDATORY for ALL missions** (Simple Tasks may skip if <5 minutes):
+
+**At Mission Start:**
+1. Create parent mission todo: `"Mission: {User's objective}"`
+2. Set status: `in_progress`
+3. Add child todos for each major step (classification, delegation, verification)
+
+**During Execution:**
+1. Mark current task as `in_progress` BEFORE starting
+2. Mark completed tasks as `completed` IMMEDIATELY after finishing
+3. Create new todos if additional steps discovered
+4. Update todos if blockers encountered
+
+**Mission Completion:**
+1. Ensure all child todos are `completed`
+2. Mark parent mission todo as `completed`
+
+**Example Mission Todo Structure:**
+```
+☑ Mission: Create new PayPal payment plugin (completed)
+  ☑ Classify mission complexity (completed)
+  ☑ Delegate to mission-commander for blueprint (completed)
+  ☑ Execute blueprint with nopcommerce-plugin-developer (completed)
+  ☑ Verify quality gates (completed)
+  ☑ Confirm filesystem changes (completed)
+```
+
+**Interruption Handling:**
+If mission interrupted, todo state preserves:
+- What was completed
+- What's in progress
+- What remains pending
+- User can ask: "What's the status?" and you can reference todos
+
+---
+
 ## PHASE 3: QUALITY GATES & VERIFICATION
 
 ### Mandatory Verification Checklist
