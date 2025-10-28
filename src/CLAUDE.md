@@ -615,11 +615,24 @@ var content = await reader.ReadToEndAsync();
 
 ### Performance Targets
 
-**Response time targets:**
-- Admin page loads: < 500ms
-- Public store pages: < 300ms
-- API endpoints: < 200ms
-- Database queries: < 50ms (simple), < 200ms (complex)
+**Response time targets (internal operations only):**
+- Admin page loads: < 700ms (excluding external API calls)
+- Public store pages: < 500ms (excluding external API calls)
+- API endpoints (internal): < 400ms
+- Database queries: < 250ms (simple), < 400ms (complex)
+
+**External API operations (network dependent):**
+- Payment gateway calls: < 5.2 seconds (industry standard + tolerance)
+- Shipping rate APIs: < 3.2 seconds (user tolerance limit + buffer)
+- Tax calculation APIs: < 2.2 seconds
+- General external APIs: < 5.2 seconds
+
+**Implementation requirements for external APIs:**
+- Use async operations for ALL external calls (never block with .Result or .Wait())
+- Implement timeouts for external calls (default: 30 seconds, configurable)
+- Cache external API results when appropriate (respect API provider caching policies)
+- Show loading indicators for operations > 1 second (improve perceived performance)
+- Log slow external API calls for monitoring (> 3 seconds)
 
 **Query count targets:**
 - Simple pages: ≤ 5 queries
@@ -765,13 +778,13 @@ dotnet run --project Presentation\Nop.Web\Nop.Web.csproj
 - [ ] Validation errors returned with specific messages
 - [ ] Critical operations have failure recovery logic
 
-**Testing & Verification:**
+**Testing & Verification** (see .claude/requirements/testing-standards.md):
 - [ ] Unit tests for business logic (≥ 70% coverage)
-- [ ] Integration tests for data access layer
-- [ ] Plugin installation tested (creates tables, settings)
-- [ ] Plugin uninstallation tested (cleans up properly)
+- [ ] Integration tests for data access layer, external APIs, plugin install/uninstall
 - [ ] Manual testing in admin panel and public store
 - [ ] Tested with sample data (not just empty database)
+- [ ] All tests passing (dotnet test shows 100% pass rate)
+- [ ] Coverage verified: dotnet test --collect:"XPlat Code Coverage"
 
 **Documentation:**
 - [ ] README.md with installation and configuration steps

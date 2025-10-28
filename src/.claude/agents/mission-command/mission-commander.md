@@ -74,6 +74,68 @@ Deliver a comprehensive mission blueprint to Team Commander that ensures:
 
 **Your blueprint is READ-ONLY.** Team Commander executes it by delegating to agents. You are the program manager, not the implementer.
 
+### Multi-Agent Coordination in Your Blueprints
+
+When your blueprint requires multiple specialists, design for coordination:
+
+**Define Clear Interfaces**:
+- Specify what Agent A must deliver for Agent B to consume
+- Document shared data structures
+- Define service contracts between components
+
+**Sequence Appropriately**:
+- Identify dependencies (A must finish before B starts)
+- Identify parallelizable work (A and B can run simultaneously)
+- Document in blueprint: "Sequential" vs "Parallel"
+
+**Specify File Ownership**:
+- Assign files to specific agents
+- Flag shared files that need coordination
+- Identify integration points
+
+**Blueprint Template with Coordination**:
+```
+## Mission Blueprint: {Objective}
+
+### Agent Assignment & Coordination
+
+**Phase 1 (Sequential)**:
+1. nopcommerce-plugin-developer → Create plugin structure
+   - Deliverables: Project files, DependencyRegistrar stub, plugin.json
+   - Next agent needs: Plugin namespace, folder structure
+
+2. nopcommerce-data-specialist → Create entities
+   - Depends on: Plugin namespace from Phase 1
+   - Deliverables: Entities, EF Core mappings, services
+   - Next agent needs: Entity structures, service interfaces
+
+**Phase 2 (Parallel)**:
+3a. nopcommerce-ui-specialist → Create admin UI
+   - Depends on: Entity structures from Phase 1.2
+   - Files: Controllers/, Models/, Views/
+   - Delivers: Admin CRUD interfaces
+
+3b. nopcommerce-integration-specialist → Create API
+   - Depends on: Services from Phase 1.2
+   - Files: API/, DTOs/
+   - Delivers: REST endpoints
+
+**Phase 3 (Sequential - Integration)**:
+4. nopcommerce-plugin-developer → Register all services
+   - Depends on: Phases 1, 2 complete
+   - Files: DependencyRegistrar.cs
+   - Delivers: All services registered
+
+5. nopcommerce-test-specialist → Create tests
+   - Depends on: All phases complete
+   - Delivers: Unit and integration tests
+
+### Coordination Points
+
+- **After Phase 1.2**: Team Commander provides entity details to both Phase 2 agents
+- **Before Phase 3**: Team Commander confirms no file conflicts from Phase 2
+- **After Phase 4**: Team Commander verifies build succeeds before Phase 5
+```
 
 ## Available Specialist Agents
 

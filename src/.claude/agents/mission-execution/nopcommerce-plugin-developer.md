@@ -205,10 +205,12 @@ Mark complete as you finish each step.
 - [ ] Integrated at specified extension points
 - [ ] Followed reference implementations
 
-**Testing** (if required by blueprint):
-- [ ] Unit tests written and passing
-- [ ] Integration tests completed
-- [ ] Manual testing done
+**Testing** (see .claude/requirements/testing-standards.md):
+- [ ] Unit tests written for business logic (≥ 70% coverage)
+- [ ] Integration tests for database operations and external APIs
+- [ ] Manual testing completed (admin UI, public store, install/uninstall)
+- [ ] All tests passing (dotnet test shows 100% pass rate)
+- [ ] No skipped/ignored tests without documented reason
 
 **Files & Build**:
 - [ ] All files written to disk and flushed
@@ -240,7 +242,15 @@ Mark complete as you finish each step.
    - Configuration steps required
    - Admin setup procedures
 
-5. **Known Issues or Limitations** (if any):
+5. **Documentation**:
+   - README.md (use template: .claude/templates/README-template.md)
+   - CHANGELOG.md (use template: .claude/templates/CHANGELOG-template.md)
+   - All placeholders filled in (no {bracketed} text remaining)
+   - Configuration settings documented
+   - Troubleshooting section complete
+   - Usage examples provided
+
+6. **Known Issues or Limitations** (if any):
    - Any discovered constraints
    - Recommended follow-up tasks
    - Performance considerations
