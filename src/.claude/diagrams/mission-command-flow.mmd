@@ -1,0 +1,25 @@
+graph TD
+    A[Mission Planning] --> B[Intelligence Gathering]
+    B --> C[Team Commander Approval]
+    C --> D[Platoon Level Planning]
+    D --> E[Squad Coordination]
+    E --> F[Fire Team Assignment]
+    
+    F --> G[Mission Execution]
+    
+    G --> H{Real-time Comms}
+    H -->|Secure Radio| I[Squad Leader]
+    H -->|Satellite Comms| J[Platoon Commander]
+    H -->|Command Net| K[Team TOC]
+    
+    I --> L[Tactical Decisions]
+    J --> M[Operational Adjustments]
+    K --> N[Strategic Support]
+    
+    L --> O[After Action Report]
+    M --> O
+    N --> O
+    O --> P[Debrief Chain of Command]
+    
+    style G fill:#ff9999
+    style H fill:#99ccff

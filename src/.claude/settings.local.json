@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude mcp add:*)",
+      "WebFetch(domain:docs.nopcommerce.com)",
+      "WebSearch"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

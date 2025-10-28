@@ -1,0 +1,22 @@
+sequenceDiagram
+    participant POTUS as President/SecDef
+    participant JSOC as Joint Special Operations Command
+    participant NSWC as NSW Command
+    participant TEAM as SEAL Team Commander
+    participant PLAT as Platoon Commander
+    participant SQUAD as Squad Leader
+    participant OPS as Operators on Ground
+
+    POTUS->>JSOC: Mission Authorization
+    JSOC->>NSWC: Tasking Order
+    NSWC->>TEAM: Operation Assignment
+    TEAM->>PLAT: Mission Brief & Orders
+    PLAT->>SQUAD: Tactical Plan
+    SQUAD->>OPS: Execution Orders
+    
+    OPS->>SQUAD: SITREP (Situation Report)
+    SQUAD->>PLAT: Status Update
+    PLAT->>TEAM: Progress Report
+    TEAM->>NSWC: Mission Status
+    NSWC->>JSOC: Intel & Updates
+    JSOC->>POTUS: Mission Report
