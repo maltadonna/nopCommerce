@@ -454,6 +454,11 @@ Before marking ANY mission complete, verify:
 - [ ] Caching implemented where appropriate (IStaticCacheManager)
 - [ ] No N+1 query problems (.Include() for eager loading)
 - [ ] Secrets stored securely (not hardcoded)
+- [ ] Webhook signature verification implemented (if plugin has webhooks)
+- [ ] Log scrubbing verified (no secrets/credentials in log statements)
+- [ ] Rate limiting implemented on public/API endpoints (if applicable)
+- [ ] PCI compliance verified (if payment plugin) - see .claude/requirements/security-standards.md
+- [ ] GDPR compliance verified (if processes personal data) - see .claude/requirements/privacy-standards.md
 
 **Testing & Documentation** (see .claude/requirements/testing-standards.md):
 - [ ] Unit tests created and passing (required for: business logic, calculations, data validation, algorithms)

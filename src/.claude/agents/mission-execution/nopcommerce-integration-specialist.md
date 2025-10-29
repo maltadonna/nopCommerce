@@ -898,6 +898,165 @@ public class {Provider}WebhookController : Controller
 
 ---
 
+## Rate Limiting Pattern (API Protection)
+
+### Implementation Pattern for API Endpoints
+
+**Purpose:** Prevent brute-force attacks, DoS attacks, and API abuse on integration endpoints.
+
+**When to use:**
+- Payment processing endpoints (prevent card testing attacks)
+- Webhook endpoints (prevent webhook flooding)
+- Public API endpoints
+- Any endpoint accessible without authentication
+
+```csharp
+using System;
+using System.Collections.Concurrent;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
+
+namespace Nop.Plugin.{Group}.{Name}.Infrastructure
+{
+    /// <summary>
+    /// Rate limiting attribute for API endpoints
+    /// </summary>
+    public class RateLimitAttribute : ActionFilterAttribute
+    {
+        private static readonly ConcurrentDictionary<string, RateLimitInfo> _rateLimits = new();
+        private readonly int _maxRequests;
+        private readonly int _timeWindowSeconds;
+
+        /// <summary>
+        /// Ctor
+        /// </summary>
+        /// <param name="maxRequests">Maximum requests allowed</param>
+        /// <param name="timeWindowSeconds">Time window in seconds</param>
+        public RateLimitAttribute(int maxRequests = 100, int timeWindowSeconds = 60)
+        {
+            _maxRequests = maxRequests;
+            _timeWindowSeconds = timeWindowSeconds;
+        }
+
+        public override async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+        {
+            // Get client identifier (IP address or API key)
+            var clientId = GetClientIdentifier(context);
+
+            var rateLimitInfo = _rateLimits.GetOrAdd(clientId, _ => new RateLimitInfo());
+
+            lock (rateLimitInfo)
+            {
+                // Reset if time window expired
+                if (DateTime.UtcNow > rateLimitInfo.WindowStart.AddSeconds(_timeWindowSeconds))
+                {
+                    rateLimitInfo.RequestCount = 0;
+                    rateLimitInfo.WindowStart = DateTime.UtcNow;
+                }
+
+                rateLimitInfo.RequestCount++;
+
+                // Check if rate limit exceeded
+                if (rateLimitInfo.RequestCount > _maxRequests)
+                {
+                    context.Result = new StatusCodeResult(429); // Too Many Requests
+                    context.HttpContext.Response.Headers["Retry-After"] = _timeWindowSeconds.ToString();
+                    return;
+                }
+            }
+
+            await next();
+        }
+
+        private string GetClientIdentifier(ActionExecutingContext context)
+        {
+            // Try to get API key from header
+            if (context.HttpContext.Request.Headers.TryGetValue("X-API-Key", out var apiKey))
+                return $"apikey:{apiKey}";
+
+            // Fall back to IP address
+            var ipAddress = context.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            return $"ip:{ipAddress}";
+        }
+
+        private class RateLimitInfo
+        {
+            public int RequestCount { get; set; }
+            public DateTime WindowStart { get; set; } = DateTime.UtcNow;
+        }
+    }
+}
+```
+
+**Usage:**
+```csharp
+/// <summary>
+/// Payment controller with rate limiting
+/// </summary>
+public class PaymentController : Controller
+{
+    [HttpPost]
+    [RateLimit(maxRequests: 10, timeWindowSeconds: 60)] // 10 requests per minute
+    public async Task<IActionResult> ProcessPayment(PaymentRequest request)
+    {
+        // Payment processing logic
+    }
+}
+
+/// <summary>
+/// Webhook controller with rate limiting
+/// </summary>
+public class WebhookController : Controller
+{
+    [HttpPost]
+    [RateLimit(maxRequests: 100, timeWindowSeconds: 60)] // 100 webhooks per minute
+    public async Task<IActionResult> Webhook()
+    {
+        // Webhook processing logic
+    }
+}
+```
+
+**Best Practices:**
+- Use stricter limits for payment endpoints (e.g., 10/minute)
+- Use more permissive limits for webhooks from trusted sources (e.g., 100/minute)
+- Consider per-customer rate limits (not just per-IP)
+- Log rate limit violations for security monitoring
+- Return `429 Too Many Requests` with `Retry-After` header
+
+**Advanced: Database-Backed Rate Limiting**
+
+For distributed systems (multiple servers), use database or Redis for rate limit tracking:
+
+```csharp
+public class DistributedRateLimitAttribute : ActionFilterAttribute
+{
+    private readonly IStaticCacheManager _cacheManager;
+
+    public override async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+    {
+        var clientId = GetClientIdentifier(context);
+        var cacheKey = $"ratelimit:{clientId}";
+
+        var count = await _cacheManager.GetAsync<int>(cacheKey, () => Task.FromResult(0));
+
+        if (count >= _maxRequests)
+        {
+            context.Result = new StatusCodeResult(429);
+            return;
+        }
+
+        // Increment counter
+        await _cacheManager.SetAsync(cacheKey, count + 1, _timeWindowSeconds / 60);
+
+        await next();
+    }
+}
+```
+
+---
+
 ## Self-Verification Checklist
 
 Before reporting completion:
